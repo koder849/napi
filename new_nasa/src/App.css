@@ -5,6 +5,11 @@
   text-align: center;
 }
 
+.photo{
+  width: 100%;
+
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -39,4 +44,114 @@
 
 .read-the-docs {
   color: #888;
+}
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f0f4f8;
+  color: #333;
+}
+
+.header {
+  text-align: center;
+  padding: 20px;
+  background-color: #003366; /* Dark Blue for NASA Header */
+  color: #fff;
+}
+
+.logo {
+  width: 100px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+p {
+  margin: 10px 0;
+}
+
+.error {
+  text-align: center;
+  color: red;
+  font-size: 1.2rem;
+  margin: 20px;
+}
+
+.image-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
+  padding: 20px;
+}
+
+.image-card {
+  width: 300px;  /* Adjusted image card width */
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.photo {
+  width: 100%;
+  height: auto;
+}
+
+.metadata {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.metadata h3 {
+  margin: 10px 0;
+  font-size: 1.1rem;
+  color: #0b3d91;
+}
+
+.metadata p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.metadata-block {
+  margin-top: 15px;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.metadata-block p {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  white-space: pre-wrap; /* Allow JSON to break into lines */
+}
+
+.metadata-block p span {
+  word-wrap: break-word; /* Break long words */
+}
+
+.image-card {
+  max-width: 350px; /* Increase the width for more space */
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .image-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .metadata {
+    padding: 15px;
+  }
 }
