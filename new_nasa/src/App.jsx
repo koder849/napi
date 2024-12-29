@@ -1,109 +1,247 @@
-import { useEffect, useState } from "react";
-import nasaLogo from "./assets/nasa-6.svg";
-import "./App.css";
-import axios from "axios";
+// src/App.jsx
+import * as THREE from "three";
+import { Suspense, useLayoutEffect, useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import {
+  Image,
+  ScrollControls,
+  useScroll,
+  Billboard,
+  Text,
+  Points,
+  PointMaterial,
+} from "@react-three/drei";
+import { easing } from "maath";
+import { useNasaImages } from "./hooks/useNasaImages";
+import * as random from "maath/random/dist/maath-random.esm";
 
-function App() {
-  const [data, setData] = useState([]);
-  const [error, setError] = useState(null);
-
-  const nasaAPIKey = import.meta.env.VITE_NASA_API_KEY;
-  const apiUrl = import.meta.env.VITE_NASA_API_URL;
-  const apiPng = import.meta.env.VITE_NASA_API_PNG;
-
-  // Fetch data from NASA API
-  const fetchNasaData = async () => {
-    try {
-      const response = await axios.get(apiUrl, {
-        params: { api_key: nasaAPIKey },
-      });
-
-      if (response.data) {
-        const formattedData = response.data.map((item) => {
-          const date = item.date.split(" ")[0].replaceAll("-", "/");
-          const imageUrl = `${apiPng}${date}/png/${item.image}.png?api_key=${nasaAPIKey}`;
-
-          return {
-            ...item,
-            imageUrl,
-          };
-        });
-        setData(formattedData);
-        setError(null); // Clear error if data is fetched successfully
-      }
-    } catch (err) {
-      console.error("Error fetching NASA data:", err);
-      setError("Failed to fetch data from NASA API. Please try again later.");
-    }
-  };
-
-  useEffect(() => {
-    fetchNasaData();
-  }, []);
-
+export default function App() {
   return (
-    <>
-      <div className="header">
-        <a href="https://www.nasa.gov/" target="_blank" rel="noreferrer">
-          <img src={nasaLogo} className="logo" alt="NASA logo" />
-        </a>
-        <h1>NASA EPIC Viewer</h1>
-        <p>Explore daily Earth imagery from the DSCOVR EPIC instrument.</p>
-      </div>
-
-      {/* Only show error if the data isn't fetched */}
-      {error && !data.length && <div className="error">{error}</div>}
-
-      <div className="image-container">
-        {data.map((item, index) => (
-          <div key={index} className="image-card">
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt={`NASA image ${index + 1}`}
-                className="photo"
-              />
-            ) : (
-              <p>Image not available</p>
-            )}
-
-            <div className="metadata">
-              <h3>{item.image}</h3>
-              <p>
-                <strong>Date:</strong> {item.date}
-              </p>
-              <p>
-                <strong>Caption:</strong>{" "}
-                {item.caption || "No caption available."}
-              </p>
-              <div className="metadata-block">
-                <p>
-                  <strong>Centroid Coordinates:</strong>{" "}
-                  {`Lat: ${item.centroid_coordinates?.lat}, Lon: ${item.centroid_coordinates?.lon}`}
-                </p>
-                <p>
-                  <strong>DSCOVR Position:</strong>{" "}
-                  {JSON.stringify(item.dscovr_j2000_position)}
-                </p>
-                <p>
-                  <strong>Lunar Position:</strong>{" "}
-                  {JSON.stringify(item.lunar_j2000_position)}
-                </p>
-                <p>
-                  <strong>Sun Position:</strong>{" "}
-                  {JSON.stringify(item.sun_j2000_position)}
-                </p>
-                <p>
-                  <strong>Attitude Quaternions:</strong>{" "}
-                  {JSON.stringify(item.attitude_quaternions)}
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+    <Canvas dpr={[1, 5]} camera={{ position: [0, 0, 9], fov: 50 }}>
+      <ScrollControls pages={4} infinite>
+        <Suspense fallback={null}>
+          <Scene position={[0, -1, 0]} />
+          <Stars />
+        </Suspense>
+      </ScrollControls>
+    </Canvas>
   );
 }
 
-export default App;
+function Stars(props) {
+  const ref = useRef();
+  const [sphere] = useState(() =>
+    random.inSphere(new Float32Array(5000), { radius: 1.5 })
+  );
+  useFrame((state, delta) => {
+    ref.current.rotation.x -= delta / 10;
+    ref.current.rotation.y -= delta / 15;
+  });
+  return (
+    <group rotation={[0, 0, Math.PI / 4]}>
+      <Points
+        ref={ref}
+        positions={sphere}
+        stride={3}
+        frustumCulled={false}
+        {...props}
+      >
+        <PointMaterial
+          transparent
+          color="#ffa0e0"
+          size={0.005}
+          sizeAttenuation={true}
+          depthWrite={false}
+        />
+      </Points>
+    </group>
+  );
+}
+
+function Scene({ ...props }) {
+  const groupRef = useRef();
+  const scroll = useScroll();
+  const [hovered, setHovered] = useState(null);
+  const { photos, loading, error } = useNasaImages();
+
+  useFrame((state, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = -scroll.offset * Math.PI * 2; // Rotate contents based on scroll
+    }
+    // Smooth camera movement
+    easing.damp3(
+      state.camera.position,
+      [-state.pointer.x * 2, state.pointer.y * 2 + 4.5, 9],
+      0.3,
+      delta
+    );
+    state.camera.lookAt(0, 0, 0); // Ensure the camera always looks at the center
+  });
+
+  if (loading) {
+    return <Text position={[0, 0, 0]}>Loading...</Text>;
+  }
+
+  if (error) {
+    return (
+      <Text position={[0, 0, 0]} color="red">
+        {error}
+      </Text>
+    );
+  }
+
+  return (
+    <group ref={groupRef} {...props}>
+      {/* Define different seasons/categories if needed */}
+      <Cards
+        category="EPIC Images"
+        from={0}
+        len={Math.PI * 2}
+        onPointerOver={setHovered}
+        onPointerOut={setHovered}
+        photos={photos}
+      />
+      {/* ActiveCard displays details of the hovered image */}
+      <ActiveCard hovered={hovered} photos={photos} />
+    </group>
+  );
+}
+
+function Cards({
+  category,
+  from = 0,
+  len = Math.PI * 2,
+  radius = 5.25,
+  onPointerOver,
+  onPointerOut,
+  photos,
+  ...props
+}) {
+  const [hoveredIndex, setHoveredIndex] = useState(null);
+
+  const amount = photos.length;
+  const textPosition = from + (amount / 2 / amount) * len;
+
+  return (
+    <group {...props}>
+      {/* Category Label */}
+      <Billboard
+        position={[
+          Math.sin(textPosition) * radius * 1.4,
+          0.5,
+          Math.cos(textPosition) * radius * 1.4,
+        ]}
+      >
+        <Text fontSize={0.25} anchorX="center" color="black">
+          {category}
+        </Text>
+      </Billboard>
+
+      {/* Render each photo as a Card */}
+      {photos.map((photo, i) => {
+        const angle = from + (i / amount) * len;
+        return (
+          <Card
+            key={photo.identifier} // Unique key for each card
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              setHoveredIndex(i);
+              onPointerOver && onPointerOver(i);
+            }}
+            onPointerOut={() => {
+              setHoveredIndex(null);
+              onPointerOut && onPointerOut(null);
+            }}
+            position={[Math.sin(angle) * radius, 0, Math.cos(angle) * radius]}
+            rotation={[0, Math.PI / 2 + angle, 0]}
+            active={hoveredIndex !== null}
+            hovered={hoveredIndex === i}
+            url={photo.imageUrl}
+          />
+        );
+      })}
+    </group>
+  );
+}
+
+function Card({ url, active, hovered, ...props }) {
+  const ref = useRef();
+
+  useFrame((state, delta) => {
+    const scaleFactor = hovered ? 1.4 : active ? 1.25 : 1;
+    // Smooth position animation
+    easing.damp3(ref.current.position, [0, hovered ? 0.25 : 0, 0], 0.1, delta);
+    // Smooth scale animation
+    easing.damp3(
+      ref.current.scale,
+      [1.618 * scaleFactor, 1 * scaleFactor, 1],
+      0.15,
+      delta
+    );
+  });
+
+  return (
+    <group {...props}>
+      <Image
+        ref={ref}
+        transparent
+        radius={0.075}
+        url={url}
+        scale={[1.618, 1, 1]}
+        side={THREE.DoubleSide}
+      />
+    </group>
+  );
+}
+
+function ActiveCard({ hovered, photos, ...props }) {
+  const ref = useRef();
+
+  useLayoutEffect(() => {
+    if (ref.current) {
+      ref.current.material.zoom = 0.8;
+    }
+  }, [hovered]);
+
+  useFrame((state, delta) => {
+    if (ref.current) {
+      // Smooth zoom animation
+      easing.damp(ref.current.material, "zoom", 1, 0.5, delta);
+      // Smooth opacity animation
+      easing.damp(
+        ref.current.material,
+        "opacity",
+        hovered !== null ? 1 : 0,
+        0.3,
+        delta
+      );
+    }
+  });
+
+  if (hovered === null || !photos[hovered]) return null;
+
+  const photo = photos[hovered];
+
+  return (
+    <Billboard {...props}>
+      {/* Display caption and date from the API */}
+      <Text
+        fontSize={0.2}
+        position={[2.15, 3.85, 0]}
+        maxWidth={3}
+        anchorX="left"
+        color="black"
+      >
+        {`${photo.caption}\n${photo.date}`}
+      </Text>
+      <Image
+        ref={ref}
+        transparent
+        radius={0.3}
+        position={[0, 1.5, 0]}
+        scale={[3.5, 1.618 * 3.5, 0.2, 1]}
+        url={photo.imageUrl}
+      />
+    </Billboard>
+  );
+}
